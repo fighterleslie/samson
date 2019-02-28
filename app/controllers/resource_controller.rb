@@ -24,15 +24,19 @@ class ResourceController < ApplicationController
     respond_to { |format| format.html { render template } }
   end
 
-  def create(template: :new)
+  def create(template: :new, fallback_location: resource_path, redirect_on_html_error: false)
     respond_to do |format|
       format.html do
         if @resource.save
           create_callback
-          redirect_back fallback_location: resource_path, notice: "Created!"
+          redirect_back fallback_location: fallback_location, notice: "Created!"
         else
-          flash[:alert] = "Failed to create!"
-          render template
+          if redirect_on_html_error
+            redirect_back fallback_location: root_path, alert: @resource.errors.full_messages
+          else
+            flash[:alert] = "Failed to create!"
+            render template
+          end
         end
       end
       format.json do
@@ -81,14 +85,14 @@ class ResourceController < ApplicationController
     respond_to do |format|
       format.html do
         if success
-          redirect_to resources_path, notice: "Destroyed!"
+          redirect_back fallback_location: resources_path, notice: "Destroyed!"
         else
           error_message = <<~TEXT
             #{resource_class.name} could not be destroyed because:
             #{@resource.errors.full_messages.join(', ')}
           TEXT
 
-          redirect_to @resource, alert: error_message
+          redirect_back fallback_location: @resource, alert: error_message
         end
       end
       format.json do
@@ -100,6 +104,7 @@ class ResourceController < ApplicationController
   private
 
   def search_resources
+    resource_class
   end
 
   # hook
